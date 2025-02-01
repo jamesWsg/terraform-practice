@@ -86,6 +86,7 @@ resource "aws_security_group" "my_security_group" {
   }
 }
 
+/*  use launch template instead, so can use init script
 resource "aws_instance" "my_instance" {
   ami           = var.ami_id  # 替换为你的目标AMI
   instance_type = var.instance_type
@@ -98,4 +99,36 @@ resource "aws_instance" "my_instance" {
     Name = var.tag
   }
 }
+*/
 
+
+# create launch template
+resource "aws_launch_template" "my_launch_template" {
+  name_prefix   = "my-launch-template"
+  image_id      = var.ami_id  
+  instance_type = var.instance_type  
+  key_name      = aws_key_pair.my_key_pair.key_name 
+
+  network_interfaces {
+    associate_public_ip_address = true
+    subnet_id                   = aws_subnet.my_subnet.id
+    security_groups = [aws_security_group.my_security_group.id]
+  }
+
+  user_data = filebase64("${path.module}/startup.sh")
+
+  tags = {
+    Name = "my-launch-template"
+  }
+}
+
+resource "aws_instance" "my_instance" {
+  launch_template {
+    id      = aws_launch_template.my_launch_template.id
+    version = "$Latest"
+  }
+
+  tags = {
+    Name = var.tag
+  }
+}
